@@ -22,19 +22,17 @@ vm_boxes = [
 Vagrant.configure("2") do |config|
     # we use centos distribution
     config.vm.box = "ubuntu/trusty64"
-    # shared host-guest space
-    # config.vm.synced_folder "./src",
-    #                         "/src",
-    #                         disabled: false
+
     # disable auto insertion of SSH-keys
     config.ssh.insert_key = false
 
     config.vm.provider "virtualbox" do |vb|
-        vb.memory = "1024"
+        vb.memory = "2048"
     end
 
     config.vm.provision "ansible" do |ansible|
         ansible.playbook = "playbook.yml"
+        ansible.inventory_path = "hosts.yml"
     end
 
     vm_boxes.each_with_index do |box, index|
@@ -53,8 +51,9 @@ Vagrant.configure("2") do |config|
 
             if index == vm_boxes.length - 1
                 box_config.vm.provision :ansible do |ansible|
-                    ansible.limit = "all"
                     ansible.playbook = "playbook.yml"
+                    ansible.inventory_path = "hosts.yml"
+                    ansible.limit = "all"
                 end
             end
         end

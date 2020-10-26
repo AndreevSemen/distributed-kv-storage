@@ -1,21 +1,22 @@
 ---
 distributed-kv-storage.router:
-  advertise_uri: 127.0.0.1:3301
+  advertise_uri: 172.19.0.2:3301
   http_port: 8081
 
 distributed-kv-storage.s1-master:
-  advertise_uri: 127.0.0.1:3302
+  advertise_uri: 172.19.0.2:3302
   http_port: 8082
 
 distributed-kv-storage.s1-replica:
-  advertise_uri: 127.0.0.1:3303
+  advertise_uri: 172.19.0.3:3301
   http_port: 8083
 
 distributed-kv-storage.s2-master:
-  advertise_uri: 127.0.0.1:3304
+  advertise_uri: 172.19.0.2:3302
   http_port: 8084
 
 
 distributed-kv-storage-stateboard:
   listen: 127.0.0.1:8080
   password: passwd
+...
