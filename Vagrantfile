@@ -8,12 +8,12 @@
 vm_boxes = [
     {
         :name  => "v-machine1",
-        :ip    => "127.0.0.1",
+        :ip    => "172.19.0.2",
         :ports => [8800, 8801]
     },
     {
         :name  => "v-machine2",
-        :ip    => "127.0.0.1",
+        :ip    => "172.19.0.3",
         :ports => [8802, 8803]
     }
 ]
@@ -46,17 +46,17 @@ Vagrant.configure("2") do |config|
             box[:ports].each do |port|
                 # mapping of host-guest ports
                 box_config.vm.network "forwarded_port",
-                                      guest:   port,
-                                      host:    port,
-                                      host_ip: "127.0.0.1"
+                                      guest:       port,
+                                      host:        port,
+                                      autocorrect: true
             end
 
-            #if index == vm_boxes.length - 1
-            #    box_config.vm.provision :ansible do |ansible|
-            #        ansible.limit = "all"
-            #        ansible.playbook = "playbook.yml"
-            #    end
-            #end
+            if index == vm_boxes.length - 1
+                box_config.vm.provision :ansible do |ansible|
+                    ansible.limit = "all"
+                    ansible.playbook = "playbook.yml"
+                end
+            end
         end
     end
 
