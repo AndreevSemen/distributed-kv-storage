@@ -23,9 +23,9 @@ Vagrant.configure("2") do |config|
     # we use centos distribution
     config.vm.box = "ubuntu/trusty64"
     # shared host-guest space
-    config.vm.synced_folder "./src",
-                            "/src",
-                            disabled: false
+    # config.vm.synced_folder "./src",
+    #                         "/src",
+    #                         disabled: false
     # disable auto insertion of SSH-keys
     config.ssh.insert_key = false
 
