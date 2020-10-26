@@ -8,12 +8,12 @@
 vm_boxes = [
     {
         :name  => "v-machine1",
-        :ip    => "192.168.77.21",
+        :ip    => "127.0.0.1",
         :ports => [8800, 8801]
     },
     {
         :name  => "v-machine2",
-        :ip    => "192.168.77.22",
+        :ip    => "127.0.0.1",
         :ports => [8802, 8803]
     }
 ]
@@ -27,15 +27,15 @@ Vagrant.configure("2") do |config|
                             "/src",
                             disabled: false
     # disable auto insertion of SSH-keys
-    # config.ssh.insert_key = false
+    config.ssh.insert_key = false
 
     config.vm.provider "virtualbox" do |vb|
         vb.memory = "1024"
     end
 
-    # config.vm.provision "ansible" do |ansible|
-    #     ansible.playbook = "playbook.yml"
-    # end
+    config.vm.provision "ansible" do |ansible|
+        ansible.playbook = "playbook.yml"
+    end
 
     vm_boxes.each_with_index do |box, index|
         config.vm.define box[:name] do |box_config|
@@ -51,12 +51,12 @@ Vagrant.configure("2") do |config|
                                       host_ip: "127.0.0.1"
             end
 
-            if index == vm_boxes.length - 1
-                box_config.vm.provision :ansible do |ansible|
-                    ansible.limit = "all"
-                    ansible.playbook = "playbook.yml"
-                end
-            end
+            #if index == vm_boxes.length - 1
+            #    box_config.vm.provision :ansible do |ansible|
+            #        ansible.limit = "all"
+            #        ansible.playbook = "playbook.yml"
+            #    end
+            #end
         end
     end
 

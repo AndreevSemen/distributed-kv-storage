@@ -7,19 +7,18 @@ local function InitLog()
 end
 
 local function InitTarantool()
-	box.cfg{
-		listen = 3301
-	}
-	box.once("bootstrap", function()
-		box.schema.space.create('kv')
-		box.space.kv:format{
-				{name = 'key', type = 'string'},
-				{name = 'value', type = 'map'},
-		}
-		box.space.kv:create_index('primary', {
-			type = 'tree', parts = {1, 'string'}
-		})
-	end)
+	box.schema.space.create('kv', {
+		format = {
+		    {'key', 'string'},
+	    	{'value', 'map'},
+	    },
+		if_not_exists = true,
+	})
+	box.space.kv:create_index('primary', {
+		type = 'tree',
+		parts = {'key'},
+		if_not_exists = true,
+	})
 end
 
 local function NewLogWrapper(title)
