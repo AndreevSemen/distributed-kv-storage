@@ -39,8 +39,8 @@ local function BadJSON(request)
     return FormResponse(request, 400, {error = 'invalid json'})
 end
 
-local function InternalError(request)
-    return FormResponse(request, 500, {error = 'internal error'})
+local function InternalError(request, error)
+    return FormResponse(request, 500, {error = 'internal error', info = error})
 end
 
 
@@ -67,7 +67,7 @@ local function HTTPCreate(request)
 
     if error then
         logger('info', 'internal error')
-        return InternalError(request)
+        return InternalError(request, error.err)
     end
 
     if has_created then
@@ -95,7 +95,7 @@ local function HTTPRead(request)
 
     if error then
         logger('info', 'internal error')
-        return InternalError(request)
+        return InternalError(request, error.err)
     end
 
     if value == nil then
@@ -130,7 +130,7 @@ local function HTTPUpdate(request)
 
     if error then
         logger('info', 'internal error')
-        return InternalError(request)
+        return InternalError(request, error.err)
     end
 
     if has_updated == nil then
@@ -158,7 +158,7 @@ local function HTTPDelete(request)
 
     if error then
         logger('info', 'internal error')
-        return InternalError(request)
+        return InternalError(request, error.err)
     end
 
     if has_deleted == nil then
