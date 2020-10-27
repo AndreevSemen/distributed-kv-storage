@@ -30,10 +30,9 @@ Vagrant.configure("2") do |config|
         vb.memory = "2048"
     end
 
-    config.vm.provision "ansible" do |ansible|
-        ansible.playbook = "playbook.yml"
-        ansible.inventory_path = "hosts.yml"
-    end
+    config.vm.provision "shell", inline: <<-SHELL
+        apt-get install -y systemd
+    SHELL
 
     vm_boxes.each_with_index do |box, index|
         config.vm.define box[:name] do |box_config|
@@ -47,14 +46,6 @@ Vagrant.configure("2") do |config|
                                       guest:       port,
                                       host:        port,
                                       autocorrect: true
-            end
-
-            if index == vm_boxes.length - 1
-                box_config.vm.provision :ansible do |ansible|
-                    ansible.playbook = "playbook.yml"
-                    ansible.inventory_path = "hosts.yml"
-                    ansible.limit = "all"
-                end
             end
         end
     end
