@@ -1,3 +1,4 @@
+local log = require('log')
 local vshard = require('vshard')
 local cartridge = require('cartridge')
 local errors = require('errors')
