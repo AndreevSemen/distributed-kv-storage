@@ -26,7 +26,7 @@ end
 
 
 local function HTTPCreate(request)
-    local logger = NewLogWrapper('Create')
+
 
     local ok, json = pcall(request.json, request)
     if (not ok or json['key'] == nil or json['value'] == nil) then
@@ -61,7 +61,7 @@ local function HTTPCreate(request)
 end
 
 local function HTTPRead(requset)
-    local logger = NewLogWrapper('Read')
+
 
     local key = request:stash('id')
     local bucket_id = vshard.router.bucket_id(key)
@@ -89,7 +89,7 @@ local function HTTPRead(requset)
 end
 
 local function HTTPUpdate(request)
-    local logger = NewLogWrapper('Update')
+
 
     local key = request:stash('id')
     local ok, json = pcall(request.json, request)
@@ -124,7 +124,7 @@ local function HTTPUpdate(request)
 end
 
 local function HTTPDelete(request)
-    local logger = NewLogWrapper('Read')
+
 
     local key = request:stash('id')
     local bucket_id = vshard.router.bucket_id(key)
