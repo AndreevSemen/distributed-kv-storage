@@ -58,7 +58,7 @@ local function HTTPCreate(request)
     return FormResponse(request, 200, {result = 'record created'})
 end
 
-local function HTTPRead(requset)
+local function HTTPRead(request)
     local key = request:stash('id')
     local bucket_id = vshard.router.bucket_id(key)
 
