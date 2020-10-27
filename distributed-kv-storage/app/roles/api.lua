@@ -26,8 +26,6 @@ end
 
 
 local function HTTPCreate(request)
-
-
     local ok, json = pcall(request.json, request)
     if (not ok or json['key'] == nil or json['value'] == nil) then
         logger('info', 'request with invalid json: '..request.path)
@@ -61,8 +59,6 @@ local function HTTPCreate(request)
 end
 
 local function HTTPRead(requset)
-
-
     local key = request:stash('id')
     local bucket_id = vshard.router.bucket_id(key)
 
@@ -89,8 +85,6 @@ local function HTTPRead(requset)
 end
 
 local function HTTPUpdate(request)
-
-
     local key = request:stash('id')
     local ok, json = pcall(request.json, request)
     if (not ok or json['value'] == nil) then
@@ -124,8 +118,6 @@ local function HTTPUpdate(request)
 end
 
 local function HTTPDelete(request)
-
-
     local key = request:stash('id')
     local bucket_id = vshard.router.bucket_id(key)
 
