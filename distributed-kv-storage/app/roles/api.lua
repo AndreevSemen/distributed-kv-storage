@@ -5,6 +5,24 @@ local errors = require('errors')
 local err_vshard_router = errors.new_class("Vshard routing error")
 local err_httpd = errors.new_class("httpd error")
 
+local function InitLog()
+    log.usecolor = true
+end
+
+local function NewLogWrapper(title)
+    return function(level, data)
+        local color = ""
+        if level == 'trace' then
+            color = "\27[32m"
+        end
+        if level == 'info' then
+            color = "\27[33m"
+        end
+
+        log.info("%s[%s] (%s): %s\27[0m", color, os.date("%H:%M:%S %d/%m/%y"), title, data)
+    end
+end
+
 
 local function FormResponse(request, code, json)
     local response = request:render{json = json}
@@ -26,6 +44,8 @@ end
 
 
 local function HTTPCreate(request)
+    local logger = NewLogWrapper('Create')
+
     local ok, json = pcall(request.json, request)
     if (not ok or json['key'] == nil or json['value'] == nil) then
         logger('info', 'request with invalid json: '..request.path)
@@ -59,6 +79,8 @@ local function HTTPCreate(request)
 end
 
 local function HTTPRead(request)
+    local logger = NewLogWrapper('Read')
+
     local key = request:stash('id')
     local bucket_id = vshard.router.bucket_id(key)
 
@@ -85,6 +107,8 @@ local function HTTPRead(request)
 end
 
 local function HTTPUpdate(request)
+    local logger = NewLogWrapper('Update')
+
     local key = request:stash('id')
     local ok, json = pcall(request.json, request)
     if (not ok or json['value'] == nil) then
@@ -118,6 +142,8 @@ local function HTTPUpdate(request)
 end
 
 local function HTTPDelete(request)
+    local logger = NewLogWrapper('Delete')
+
     local key = request:stash('id')
     local bucket_id = vshard.router.bucket_id(key)
 
@@ -146,6 +172,8 @@ end
 
 local function init(opts)
     rawset(_G, 'vshard', vshard)
+
+    InitLog()
 
     if opts.is_master then
         box.schema.user.grant('guest',
