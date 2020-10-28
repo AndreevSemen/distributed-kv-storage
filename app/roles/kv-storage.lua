@@ -2,11 +2,11 @@ local httpserver = require('http.server')
 local log        = require('log')
 
 
-local function InitLog()
+local function init_log()
 	log.usecolor = true
 end
 
-local function InitTarantool()
+local function init_tarantool()
 	box.schema.space.create('kv', {
 		format = {
 		    {'key', 'string'},
@@ -21,7 +21,7 @@ local function InitTarantool()
 	})
 end
 
-local function NewLogWrapper(title)
+local function new_log_wrapper(title)
 	return function(level, data)
 		local color = ""
 		if level == 'trace' then
@@ -35,8 +35,8 @@ local function NewLogWrapper(title)
 	end
 end
 
-local function Create(key, value)
-	local logger = NewLogWrapper('Create')
+local function create(key, value)
+	local logger = new_log_wrapper('create')
 
 	local error = box.space.kv:get(key)
 	if (error ~= nil) then
@@ -49,8 +49,8 @@ local function Create(key, value)
 	return true
 end
 
-local function Read(key)
-	local logger = NewLogWrapper('Read')
+local function read(key)
+	local logger = new_log_wrapper('read')
 
 	local got = box.space.kv:get(key)
 	if (got == nil) then
@@ -62,8 +62,8 @@ local function Read(key)
 	return got
 end
 
-local function Update(key, value)
-	local logger = NewLogWrapper('Create')
+local function update(key, value)
+	local logger = new_log_wrapper('update')
 
 	local updated = box.space.kv:update(key, {{'=', 2, value}})
 	if (updated == nil) then
@@ -75,8 +75,8 @@ local function Update(key, value)
 	return true
 end
 
-local function Delete(key)
-	local logger = NewLogWrapper('Delete')
+local function delete(key)
+	local logger = new_log_wrapper('delete')
 
 	local deleted = box.space.kv:delete(key)
 	if (deleted == nil) then
@@ -89,16 +89,16 @@ local function Delete(key)
 end
 
 local exported_functions = {
-	create = Create,
-	read   = Read,
-	update = Update,
-	delete = Delete,
+	create = create,
+	read   = read,
+	update = update,
+	delete = delete,
 }
 
 local function init(opts)
     if opts.is_master then
-        InitTarantool()
-        InitLog()
+        init_tarantool()
+        init_log()
 
         for name in pairs(exported_functions) do
             box.schema.func.create(name, {if_not_exists = true})

@@ -1,41 +1,22 @@
-# Compiled Lua sources
-luac.out
-
-# luarocks build files
-*.src.rock
-*.zip
-*.tar.gz
-
-# Object files
-*.o
-*.os
-*.ko
-*.obj
-*.elf
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-*.def
-*.exp
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
+.rocks
+.swo
+.swp
+CMakeCache.txt
+CMakeFiles
+cmake_install.cmake
 *.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
+*.idea
+__pycache__
+*pyc
+.cache
+.pytest_cache
+.vagrant
+.DS_Store
+*.xlog
+*.snap
+*.rpm
+*.deb
+*.tar.gz
+node_modules
+/tmp/*
+!/tmp/.keep
