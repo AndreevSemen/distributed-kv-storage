@@ -16,7 +16,6 @@ local function init_tarantool()
 end
 
 local function init(opts)
-	crud.init_storage()
 	if opts.is_master then
         init_tarantool()
     end
