@@ -55,7 +55,7 @@ local function http_create(request)
     local key = json['key']
     local value = json['value']
 
-    local inserted, error = crud.insert_object('kv',
+    local failed, error = crud.insert_object('kv',
         {
             key = key,
             value = value
@@ -67,7 +67,7 @@ local function http_create(request)
         return internal_error(request, error.err)
     end
 
-    if not inserted then
+    if failed then
         logger('info', 'creating record with existing key `'..key..'`')
         return form_response(request, 409, {error = 'key already exists'})
     end
@@ -109,7 +109,7 @@ local function http_update(request)
 
     local value = json['value']
 
-    local updated, error = crud.update('kv',
+    local failed, error = crud.update('kv',
         key,
         {{'=', 2, value}}
     )
@@ -119,7 +119,7 @@ local function http_update(request)
         return internal_error(request, error.err)
     end
 
-    if not updated then
+    if not failed then
         logger('info', 'key `'..key..'` not found')
         return not_found(request)
     end
