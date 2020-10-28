@@ -23,6 +23,10 @@ Vagrant.configure("2") do |config|
     # we use centos distribution
     config.vm.box = "ubuntu/trusty64"
 
+    # setting up synced folder for quick sharing
+    # deb-package between host and guest
+    config.vm.synced_folder "./shared/", "/shared"
+
     # disable auto insertion of SSH-keys
     config.ssh.insert_key = false
 

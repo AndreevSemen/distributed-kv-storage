@@ -6,11 +6,11 @@ local errors = require('errors')
 local err_vshard_router = errors.new_class("Vshard routing error")
 local err_httpd = errors.new_class("httpd error")
 
-local function InitLog()
+local function init_log()
     log.usecolor = true
 end
 
-local function NewLogWrapper(title)
+local function new_log_wrapper(title)
     return function(level, data)
         local color = ""
         if level == 'trace' then
@@ -25,32 +25,32 @@ local function NewLogWrapper(title)
 end
 
 
-local function FormResponse(request, code, json)
+local function form_response(request, code, json)
     local response = request:render{json = json}
     response.status = code
     return response
 end
 
-local function NotFound(request)
-    return FormResponse(request, 404, {error = 'key not found'})
+local function not_found(request)
+    return form_response(request, 404, {error = 'key not found'})
 end
 
-local function BadJSON(request)
-    return FormResponse(request, 400, {error = 'invalid json'})
+local function bad_json(request)
+    return form_response(request, 400, {error = 'invalid json'})
 end
 
-local function InternalError(request, error)
-    return FormResponse(request, 500, {error = 'internal error', info = error})
+local function internal_error(request, error)
+    return form_response(request, 500, {error = 'internal error', info = error})
 end
 
 
-local function HTTPCreate(request)
-    local logger = NewLogWrapper('Create')
+local function http_create(request)
+    local logger = new_log_wrapper('Create')
 
     local ok, json = pcall(request.json, request)
     if (not ok or json['key'] == nil or json['value'] == nil) then
         logger('info', 'request with invalid json: '..request.path)
-        return BadJSON(request)
+        return bad_json(request)
     end
 
     local key = json['key']
@@ -67,20 +67,20 @@ local function HTTPCreate(request)
 
     if error then
         logger('info', 'internal error')
-        return InternalError(request, error.err)
+        return internal_error(request, error.err)
     end
 
     if has_created then
         logger('info', 'creating record with existing key `'..key..'`')
-        return FormResponse(request, 409, {error = 'key already exists'})
+        return form_response(request, 409, {error = 'key already exists'})
     end
 
     logger('trace', 'record with key `'..key..'` created')
-    return FormResponse(request, 200, {result = 'record created'})
+    return form_response(request, 200, {result = 'record created'})
 end
 
-local function HTTPRead(request)
-    local logger = NewLogWrapper('Read')
+local function http_read(request)
+    local logger = new_log_wrapper('Read')
 
     local key = request:stash('id')
     local bucket_id = vshard.router.bucket_id(key)
@@ -95,26 +95,26 @@ local function HTTPRead(request)
 
     if error then
         logger('info', 'internal error')
-        return InternalError(request, error.err)
+        return internal_error(request, error.err)
     end
 
     if value == nil then
         logger('info', 'key `'..key..'` not found')
-        return NotFound(request)
+        return not_found(request)
     end
 
     logger('trace', 'record with key `'..key..'` red')
-    return FormResponse(request, 200, {value = value})
+    return form_response(request, 200, {value = value})
 end
 
-local function HTTPUpdate(request)
-    local logger = NewLogWrapper('Update')
+local function http_update(request)
+    local logger = new_log_wrapper('Update')
 
     local key = request:stash('id')
     local ok, json = pcall(request.json, request)
     if (not ok or json['value'] == nil) then
         logger('info', 'request with invalid json: '..request.path)
-        return BadJSON(request)
+        return bad_json(request)
     end
 
     local value = json['value']
@@ -130,20 +130,20 @@ local function HTTPUpdate(request)
 
     if error then
         logger('info', 'internal error')
-        return InternalError(request, error.err)
+        return internal_error(request, error.err)
     end
 
     if has_updated == nil then
         logger('info', 'key `'..key..'` not found')
-        return NotFound(request)
+        return not_found(request)
     end
 
     logger('trace', 'record with key `'..key..'` updated')
-    return FormResponse(request, 200, {result = 'record updated'})
+    return form_response(request, 200, {result = 'record updated'})
 end
 
-local function HTTPDelete(request)
-    local logger = NewLogWrapper('Delete')
+local function http_delete(request)
+    local logger = new_log_wrapper('Delete')
 
     local key = request:stash('id')
     local bucket_id = vshard.router.bucket_id(key)
@@ -158,23 +158,23 @@ local function HTTPDelete(request)
 
     if error then
         logger('info', 'internal error')
-        return InternalError(request, error.err)
+        return internal_error(request, error.err)
     end
 
     if has_deleted == nil then
         logger('info', 'key `'..key..'` not found')
-        return NotFound(request)
+        return not_found(request)
     end
 
     logger('trace', 'record with key `'..key..'` deleted')
-    return FormResponse(request, 200, {result = 'record deleted'})
+    return form_response(request, 200, {result = 'record deleted'})
 end
 
 
 local function init(opts)
     rawset(_G, 'vshard', vshard)
 
-    InitLog()
+    init_log()
 
     if opts.is_master then
         box.schema.user.grant('guest',
@@ -191,13 +191,13 @@ local function init(opts)
     end
 
     httpd:route({public = true, method = 'POST', path = '/kv'},
-                HTTPCreate)
+                http_create)
     httpd:route({public = true, method = 'PUT',  path = '/kv/:id'},
-                HTTPUpdate)
+                http_update)
     httpd:route({public = true, method = 'GET',  path = '/kv/:id'},
-                HTTPRead)
+                http_read)
     httpd:route({public = true, method = 'DELETE',  path = '/kv/:id'},
-                HTTPDelete)
+                http_delete)
 
     return true
 end
