@@ -11,6 +11,7 @@ dependencies = {
     'cartridge == 2.3.0-1',
     'metrics == 0.5.0-1',
     'cartridge-cli-extensions == 1.0.0-1',
+    'crud >= 0.2.0-1',
 }
 build = {
 	type = 'none';
