@@ -1,5 +1,4 @@
 local log = require('log')
-local vshard = require('vshard')
 local cartridge = require('cartridge')
 local errors = require('errors')
 
@@ -56,21 +55,19 @@ local function http_create(request)
     local key = json['key']
     local value = json['value']
 
-    local bucket_id = vshard.router.bucket_id(key)
-    local has_created, error = err_vshard_router:pcall(
-        vshard.router.call,
-        bucket_id,
-        'write',
-        'create',
-        {key, value}
+    local inserted, error = crud.insert_object('kv',
+        {
+            key = key,
+            value = value
+        }
     )
 
-    if error then
+    if error ~= nil then
         logger('info', 'internal error')
         return internal_error(request, error.err)
     end
 
-    if has_created then
+    if inserted == nil then
         logger('info', 'creating record with existing key `'..key..'`')
         return form_response(request, 409, {error = 'key already exists'})
     end
@@ -83,17 +80,10 @@ local function http_read(request)
     local logger = new_log_wrapper('Read')
 
     local key = request:stash('id')
-    local bucket_id = vshard.router.bucket_id(key)
 
-    local value, error = err_vshard_router:pcall(
-        vshard.router.call,
-        bucket_id,
-        'read',
-        'read',
-        {key}
-    )
+    local value, error = crud.get('kv', key)
 
-    if error then
+    if error ~= nil then
         logger('info', 'internal error')
         return internal_error(request, error.err)
     end
@@ -119,21 +109,17 @@ local function http_update(request)
 
     local value = json['value']
 
-    local bucket_id = vshard.router.bucket_id(key)
-    local has_updated, error = err_vshard_router:pcall(
-        vshard.router.call,
-        bucket_id,
-        'write',
-        'update',
-        {key, value}
+    local updated, error = crud.update('kv',
+        key,
+        {{'=', 2, value}}
     )
 
-    if error then
+    if error ~= nil then
         logger('info', 'internal error')
         return internal_error(request, error.err)
     end
 
-    if has_updated == nil then
+    if updated == nil then
         logger('info', 'key `'..key..'` not found')
         return not_found(request)
     end
@@ -148,15 +134,9 @@ local function http_delete(request)
     local key = request:stash('id')
     local bucket_id = vshard.router.bucket_id(key)
 
-    local has_deleted, error = err_vshard_router:pcall(
-        vshard.router.call,
-        bucket_id,
-        'write',
-        'delete',
-        {key}
-    )
+    local has_deleted, error = crud.delete('kv', key)
 
-    if error then
+    if error ~= nil then
         logger('info', 'internal error')
         return internal_error(request, error.err)
     end
@@ -172,15 +152,14 @@ end
 
 
 local function init(opts)
-    rawset(_G, 'vshard', vshard)
-
     init_log()
 
     if opts.is_master then
         box.schema.user.grant('guest',
             'read,write,execute',
             'universe',
-            nil, { if_not_exists = true }
+            nil,
+            { if_not_exists = true }
         )
     end
 
@@ -206,5 +185,7 @@ end
 return {
     role_name = 'api',
     init = init,
-    dependencies = {'cartridge.roles.vshard-router'},
+    dependencies = {
+        'cartridge.roles.crud-router',
+    },
 }
