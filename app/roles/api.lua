@@ -1,8 +1,9 @@
 local log = require('log')
 local cartridge = require('cartridge')
+-- local crud = require('crud')
 local errors = require('errors')
+local vshard = require('vshard')
 
-local err_vshard_router = errors.new_class("Vshard routing error")
 local err_httpd = errors.new_class("httpd error")
 
 local function init_log()
@@ -55,21 +56,28 @@ local function http_create(request)
     local key = json['key']
     local value = json['value']
 
-    local failed, error = crud.insert_object('kv',
-        {
-            key = key,
-            value = value
-        }
-    )
+    local bucket_id = vshard.router.bucket_id(key)
+    local result, error = crud.get('kv', key, {bucket_id = bucket_id})
 
     if error ~= nil then
         logger('info', 'internal error')
         return internal_error(request, error.err)
     end
 
-    if failed then
+    if table.getn(result['rows']) ~= 0 then
         logger('info', 'creating record with existing key `'..key..'`')
         return form_response(request, 409, {error = 'key already exists'})
+    end
+
+    local result, error = crud.insert_object('kv', {
+        bucket_id = box.NULL,
+        key = key,
+        value = value,
+    })
+
+    if error ~= nil then
+        logger('info', 'internal error')
+        return internal_error(request, error.err)
     end
 
     logger('trace', 'record with key `'..key..'` created')
@@ -81,20 +89,26 @@ local function http_read(request)
 
     local key = request:stash('id')
 
-    local value, error = crud.get('kv', key)
+    local bucket_id = vshard.router.bucket_id(key)
+    local result, error = crud.get('kv', key, {bucket_id = bucket_id})
 
     if error ~= nil then
         logger('info', 'internal error')
         return internal_error(request, error.err)
     end
 
-    if value == nil then
+    local got = result['rows']
+    if table.getn(got) == 0 then
         logger('info', 'key `'..key..'` not found')
         return not_found(request)
     end
 
     logger('trace', 'record with key `'..key..'` red')
-    return form_response(request, 200, {value = value})
+    return form_response(request, 200, {
+        -- first row (1/1)
+        -- third field (value)
+        value = got[1][3],
+    })
 end
 
 local function http_update(request)
@@ -109,9 +123,11 @@ local function http_update(request)
 
     local value = json['value']
 
-    local failed, error = crud.update('kv',
+    local bucket_id = vshard.router.bucket_id(key)
+    local result, error = crud.update('kv',
         key,
-        {{'=', 2, value}}
+        {{'=', 3, value}},
+        {bucket_id = bucket_id}
     )
 
     if error ~= nil then
@@ -119,7 +135,8 @@ local function http_update(request)
         return internal_error(request, error.err)
     end
 
-    if not failed then
+    local updated = result['rows']
+    if table.getn(updated) == 0 then
         logger('info', 'key `'..key..'` not found')
         return not_found(request)
     end
@@ -132,16 +149,17 @@ local function http_delete(request)
     local logger = new_log_wrapper('Delete')
 
     local key = request:stash('id')
-    local bucket_id = vshard.router.bucket_id(key)
 
-    local has_deleted, error = crud.delete('kv', key)
+    local bucket_id = vshard.router.bucket_id(key)
+    local result, error = crud.delete('kv', key, {bucket_id = bucket_id})
 
     if error ~= nil then
         logger('info', 'internal error')
         return internal_error(request, error.err)
     end
 
-    if has_deleted == nil then
+    local deleted = result['rows']
+    if table.getn(deleted) == 0 then
         logger('info', 'key `'..key..'` not found')
         return not_found(request)
     end
@@ -153,6 +171,7 @@ end
 
 local function init(opts)
     init_log()
+    crud.init_router()
 
     if opts.is_master then
         box.schema.user.grant('guest',
@@ -169,14 +188,10 @@ local function init(opts)
         return nil, err_httpd:new("not found")
     end
 
-    httpd:route({public = true, method = 'POST', path = '/kv'},
-                http_create)
-    httpd:route({public = true, method = 'PUT',  path = '/kv/:id'},
-                http_update)
-    httpd:route({public = true, method = 'GET',  path = '/kv/:id'},
-                http_read)
-    httpd:route({public = true, method = 'DELETE',  path = '/kv/:id'},
-                http_delete)
+    httpd:route({public = true, method = 'POST'  , path = '/kv'}, http_create)
+    httpd:route({public = true, method = 'PUT'   ,  path = '/kv/:id'}, http_update)
+    httpd:route({public = true, method = 'GET'   ,  path = '/kv/:id'}, http_read)
+    httpd:route({public = true, method = 'DELETE',  path = '/kv/:id'}, http_delete)
 
     return true
 end
