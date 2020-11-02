@@ -8,20 +8,16 @@ local err_httpd = errors.new_class("httpd error")
 
 local function new_log_wrapper(title)
     return function(level, data)
-        local args = { "[%s] (%s): %s",
-            os.date("%H:%M:%S %d/%m/%y"),
+        local args = { "(%s): %s",
             title,
             data
         }
 
-        if level == 'trace' then
+        if level == 'error' then
+            log.error(unpack(args))
+        elseif level == 'info' then
             log.info(unpack(args))
         end
-        if level == 'info' then
-            log.warn(unpack())
-        end
-
-        log.info()
     end
 end
 
@@ -50,7 +46,7 @@ local function http_create(request)
 
     local ok, json = pcall(request.json, request)
     if (not ok or json['key'] == nil or json['value'] == nil) then
-        logger('info', 'request with invalid json: '..request.path)
+        logger('error', 'request with invalid json: '..request.path)
         return bad_json(request)
     end
 
@@ -67,16 +63,16 @@ local function http_create(request)
     )
 
     if error then
-        logger('info', 'internal error')
+        logger('error', 'internal error')
         return internal_error(request, error.err)
     end
 
     if has_created then
-        logger('info', 'creating record with existing key `'..key..'`')
+        logger('error', 'creating record with existing key `'..key..'`')
         return form_response(request, 409, {error = 'key already exists'})
     end
 
-    logger('trace', 'record with key `'..key..'` created')
+    logger('info', 'record with key `'..key..'` created')
     return form_response(request, 200, {result = 'record created'})
 end
 
@@ -95,16 +91,16 @@ local function http_read(request)
     )
 
     if error then
-        logger('info', 'internal error')
+        logger('error', 'internal error')
         return internal_error(request, error.err)
     end
 
     if value == nil then
-        logger('info', 'key `'..key..'` not found')
+        logger('error', 'key `'..key..'` not found')
         return not_found(request)
     end
 
-    logger('trace', 'record with key `'..key..'` red')
+    logger('info', 'record with key `'..key..'` red')
     return form_response(request, 200, {value = value})
 end
 
@@ -114,7 +110,7 @@ local function http_update(request)
     local key = request:stash('id')
     local ok, json = pcall(request.json, request)
     if (not ok or json['value'] == nil) then
-        logger('info', 'request with invalid json: '..request.path)
+        logger('error', 'request with invalid json: '..request.path)
         return bad_json(request)
     end
 
@@ -130,16 +126,16 @@ local function http_update(request)
     )
 
     if error then
-        logger('info', 'internal error')
+        logger('error', 'internal error')
         return internal_error(request, error.err)
     end
 
     if has_updated == nil then
-        logger('info', 'key `'..key..'` not found')
+        logger('error', 'key `'..key..'` not found')
         return not_found(request)
     end
 
-    logger('trace', 'record with key `'..key..'` updated')
+    logger('info', 'record with key `'..key..'` updated')
     return form_response(request, 200, {result = 'record updated'})
 end
 
@@ -158,16 +154,16 @@ local function http_delete(request)
     )
 
     if error then
-        logger('info', 'internal error')
+        logger('error', 'internal error')
         return internal_error(request, error.err)
     end
 
     if has_deleted == nil then
-        logger('info', 'key `'..key..'` not found')
+        logger('error', 'key `'..key..'` not found')
         return not_found(request)
     end
 
-    logger('trace', 'record with key `'..key..'` deleted')
+    logger('info', 'record with key `'..key..'` deleted')
     return form_response(request, 200, {result = 'record deleted'})
 end
 

@@ -1,11 +1,6 @@
 local httpserver = require('http.server')
 local log        = require('log')
 
-
-local function init_log()
-	log.usecolor = true
-end
-
 local function init_tarantool()
 	box.schema.space.create('kv', {
 		format = {
@@ -23,15 +18,16 @@ end
 
 local function new_log_wrapper(title)
 	return function(level, data)
-		local color = ""
-		if level == 'trace' then
-			color = "\27[32m"
-		end
-		if level == 'info' then
-			color = "\27[33m"
-		end
+		local args = { "(%s): %s",
+			title,
+			data
+		}
 
-		log.info("%s[%s] (%s): %s\27[0m", color, os.date("%H:%M:%S %d/%m/%y"), title, data)
+		if level == 'error' then
+			log.error(unpack(args))
+		elseif level == 'info' then
+			log.info(unpack(args))
+		end
 	end
 end
 
@@ -40,12 +36,12 @@ local function create(key, value)
 
 	local error = box.space.kv:get(key)
 	if (error ~= nil) then
-		logger('info', 'creating record with existing key `'..key..'`')
+		logger('error', 'creating record with existing key `'..key..'`')
 		return false
 	end
 
 	box.space.kv:insert({key, value})
-	logger('trace', 'record with key `'..key..'` created')
+	logger('info', 'record with key `'..key..'` created')
 	return true
 end
 
@@ -54,11 +50,11 @@ local function read(key)
 
 	local got = box.space.kv:get(key)
 	if (got == nil) then
-		logger('info', 'key `'..key..'` not found')
+		logger('error', 'key `'..key..'` not found')
 		return nil
 	end
 
-	logger('trace', 'record with key `'..key..'` red')
+	logger('info', 'record with key `'..key..'` red')
 	return got
 end
 
@@ -67,11 +63,11 @@ local function update(key, value)
 
 	local updated = box.space.kv:update(key, {{'=', 2, value}})
 	if (updated == nil) then
-		logger('info', 'key `'..key..'` not found')
+		logger('error', 'key `'..key..'` not found')
 		return false
 	end
 
-	logger('trace', 'record with key `'..key..'` updated')
+	logger('info', 'record with key `'..key..'` updated')
 	return true
 end
 
@@ -80,11 +76,11 @@ local function delete(key)
 
 	local deleted = box.space.kv:delete(key)
 	if (deleted == nil) then
-		logger('info', 'key `'..key..'` not found')
+		logger('error', 'key `'..key..'` not found')
 		return nil
 	end
 
-	logger('trace', 'record with key `'..key..'` deleted')
+	logger('info', 'record with key `'..key..'` deleted')
 	return deleted[2]
 end
 
@@ -98,7 +94,6 @@ local exported_functions = {
 local function init(opts)
     if opts.is_master then
         init_tarantool()
-        init_log()
 
         for name in pairs(exported_functions) do
             box.schema.func.create(name, {if_not_exists = true})
