@@ -6,21 +6,22 @@ local errors = require('errors')
 local err_vshard_router = errors.new_class("Vshard routing error")
 local err_httpd = errors.new_class("httpd error")
 
-local function init_log()
-    log.usecolor = true
-end
-
 local function new_log_wrapper(title)
     return function(level, data)
-        local color = ""
+        local args = { "[%s] (%s): %s",
+            os.date("%H:%M:%S %d/%m/%y"),
+            title,
+            data
+        }
+
         if level == 'trace' then
-            color = "\27[32m"
+            log.info(unpack(args))
         end
         if level == 'info' then
-            color = "\27[33m"
+            log.warn(unpack())
         end
 
-        log.info("%s[%s] (%s): %s\27[0m", color, os.date("%H:%M:%S %d/%m/%y"), title, data)
+        log.info()
     end
 end
 
@@ -173,8 +174,6 @@ end
 
 local function init(opts)
     rawset(_G, 'vshard', vshard)
-
-    init_log()
 
     if opts.is_master then
         box.schema.user.grant('guest',
