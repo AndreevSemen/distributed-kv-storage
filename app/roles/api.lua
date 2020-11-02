@@ -6,21 +6,18 @@ local errors = require('errors')
 local err_vshard_router = errors.new_class("Vshard routing error")
 local err_httpd = errors.new_class("httpd error")
 
-local function init_log()
-    log.usecolor = true
-end
-
 local function new_log_wrapper(title)
     return function(level, data)
-        local color = ""
-        if level == 'trace' then
-            color = "\27[32m"
-        end
-        if level == 'info' then
-            color = "\27[33m"
-        end
+        local args = { "(%s): %s",
+            title,
+            data
+        }
 
-        log.info("%s[%s] (%s): %s\27[0m", color, os.date("%H:%M:%S %d/%m/%y"), title, data)
+        if level == 'error' then
+            log.error(unpack(args))
+        elseif level == 'info' then
+            log.info(unpack(args))
+        end
     end
 end
 
@@ -49,7 +46,7 @@ local function http_create(request)
 
     local ok, json = pcall(request.json, request)
     if (not ok or json['key'] == nil or json['value'] == nil) then
-        logger('info', 'request with invalid json: '..request.path)
+        logger('error', 'request with invalid json: '..request.path)
         return bad_json(request)
     end
 
@@ -66,16 +63,16 @@ local function http_create(request)
     )
 
     if error then
-        logger('info', 'internal error')
+        logger('error', 'internal error')
         return internal_error(request, error.err)
     end
 
     if has_created then
-        logger('info', 'creating record with existing key `'..key..'`')
+        logger('error', 'creating record with existing key `'..key..'`')
         return form_response(request, 409, {error = 'key already exists'})
     end
 
-    logger('trace', 'record with key `'..key..'` created')
+    logger('info', 'record with key `'..key..'` created')
     return form_response(request, 200, {result = 'record created'})
 end
 
@@ -94,16 +91,16 @@ local function http_read(request)
     )
 
     if error then
-        logger('info', 'internal error')
+        logger('error', 'internal error')
         return internal_error(request, error.err)
     end
 
     if value == nil then
-        logger('info', 'key `'..key..'` not found')
+        logger('error', 'key `'..key..'` not found')
         return not_found(request)
     end
 
-    logger('trace', 'record with key `'..key..'` red')
+    logger('info', 'record with key `'..key..'` red')
     return form_response(request, 200, {value = value})
 end
 
@@ -113,7 +110,7 @@ local function http_update(request)
     local key = request:stash('id')
     local ok, json = pcall(request.json, request)
     if (not ok or json['value'] == nil) then
-        logger('info', 'request with invalid json: '..request.path)
+        logger('error', 'request with invalid json: '..request.path)
         return bad_json(request)
     end
 
@@ -129,16 +126,16 @@ local function http_update(request)
     )
 
     if error then
-        logger('info', 'internal error')
+        logger('error', 'internal error')
         return internal_error(request, error.err)
     end
 
     if has_updated == nil then
-        logger('info', 'key `'..key..'` not found')
+        logger('error', 'key `'..key..'` not found')
         return not_found(request)
     end
 
-    logger('trace', 'record with key `'..key..'` updated')
+    logger('info', 'record with key `'..key..'` updated')
     return form_response(request, 200, {result = 'record updated'})
 end
 
@@ -157,24 +154,22 @@ local function http_delete(request)
     )
 
     if error then
-        logger('info', 'internal error')
+        logger('error', 'internal error')
         return internal_error(request, error.err)
     end
 
     if has_deleted == nil then
-        logger('info', 'key `'..key..'` not found')
+        logger('error', 'key `'..key..'` not found')
         return not_found(request)
     end
 
-    logger('trace', 'record with key `'..key..'` deleted')
+    logger('info', 'record with key `'..key..'` deleted')
     return form_response(request, 200, {result = 'record deleted'})
 end
 
 
 local function init(opts)
     rawset(_G, 'vshard', vshard)
-
-    init_log()
 
     if opts.is_master then
         box.schema.user.grant('guest',
