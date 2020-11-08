@@ -6,10 +6,11 @@ local log = require('log')
 local errors = require('errors')
 local cartridge = require('cartridge')
 
-package.preload['app.roles.api'] = function()
+package.preload['api'] = function()
     return require('app.roles.api')
 end
-package.preload['app.roles.kv-storage'] = function()
+
+package.preload['kv-storage'] = function()
     return require('app.roles.kv-storage')
 end
 
@@ -18,8 +19,8 @@ local ok, err = errors.pcall('CartridgeCfgError', cartridge.cfg, {
     http_port = 8081,
     bucket_count = 3000,
     roles = {
-        'app.roles.api',
-        'app.roles.kv-storage',
+        'api',
+        'kv-storage',
     },
 })
 

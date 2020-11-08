@@ -8,16 +8,56 @@ local log = require('log')
 local helper = require('test.helper.integration')
 
 
-local url = '172.19.0.2:8080/kv'
+local url = 'localhost:8081/kv'
 local http_client = require('http.client')
 
 
 g.before_all = function()
-    g.router = t.cluster.main_server
+    g.cluster = helper.shared.Cluster:new({
+        base_http_port = 8080,
+        base_advertise_port = 3000,
+        server_command = helper.shared.server_command,
+        datadir = helper.shared.datadir,
+        use_vshard = true,
+        replicasets = {
+            {
+                alias = 'router',
+                uuid = helper.shared.uuid('a'),
+                roles = {
+                    'app.roles.api',
+                },
+                servers = {
+                    { instance_uuid = helper.shared.uuid('a', 1), alias = 'router' },
+                },
+            },
+            {
+                alias = 'kv-storage',
+                uuid = helper.shared.uuid('b'),
+                roles = {
+                    'app.roles.kv-storage',
+                },
+                servers = {
+                    { instance_uuid = helper.shared.uuid('b', 1), alias = 'kv-storage-1-master' },
+                    { instance_uuid = helper.shared.uuid('b', 2), alias = 'kv-storage-1-replica-1' },
+                    { instance_uuid = helper.shared.uuid('b', 3), alias = 'kv-storage-1-replica-2' },
+                },
+            },
+        },
+        env = {
+            ['ENGINE'] = 'memtx',
+        },
+    })
+
+    log.info(g.cluster)
+
+    g.cluster:start()
+
+    helper.router = g.cluster.servers[1]
 end
 
 g.after_all = function()
     g.cluster:stop()
+    fio.rmtree(g.cluster.datadir)
 end
 
 -- CRUD helpers
