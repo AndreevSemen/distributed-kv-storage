@@ -8,8 +8,8 @@ local log = require('log')
 local helper = require('test.helper.integration')
 
 
-local url = 'localhost:8081/kv'
 local http_client = require('http.client')
+local url = '/kv'
 
 
 g.before_all = function()
@@ -24,7 +24,7 @@ g.before_all = function()
                 alias = 'router',
                 uuid = helper.shared.uuid('a'),
                 roles = {
-                    'app.roles.api',
+                    'api',
                 },
                 servers = {
                     { instance_uuid = helper.shared.uuid('a', 1), alias = 'router' },
@@ -34,7 +34,7 @@ g.before_all = function()
                 alias = 'kv-storage',
                 uuid = helper.shared.uuid('b'),
                 roles = {
-                    'app.roles.kv-storage',
+                    'kv-storage',
                 },
                 servers = {
                     { instance_uuid = helper.shared.uuid('b', 1), alias = 'kv-storage-1-master' },
@@ -48,11 +48,8 @@ g.before_all = function()
         },
     })
 
-    log.info(g.cluster)
-
     g.cluster:start()
-
-    helper.router = g.cluster.servers[1]
+    g.router = g.cluster.main_server
 end
 
 g.after_all = function()
@@ -60,32 +57,51 @@ g.after_all = function()
     fio.rmtree(g.cluster.datadir)
 end
 
+g.before_each(function()
+    for _, server in ipairs(g.cluster.servers) do
+        server.net_box:eval([[
+            local space = box.space.kv
+            if space ~= nil and not box.cfg.read_only then
+                space:truncate()
+            end
+        ]])
+    end
+end)
+
+g.after_each(function()
+
+end)
+
 -- CRUD helpers
 local function create(key, value)
-    return g.router:http_request('get', url, {
+    return g.router:http_request('post', url..'/', {
         json = {
             key = key,
             value = value,
         },
         http = { timeout = 1 },
+        raise = false,
     })
 end
 
 local function read(key)
-    return g.router:http_request('get', url..'/'..key, { http = { timeout = 1 } })
+    return g.router:http_request('get', url..'/'..key, { http = { timeout = 1 } , raise = false })
 end
 
 local function update(key, value)
-    return g.router:http_request('put', url..'/'..key, {
+    local resp = g.router:http_request('put', url..'/'..key, {
         json = { value = value },
         http = {
             timeout = 1
         },
+        raise = false,
     })
+    log.info(resp)
+    return resp
 end
 
 local function delete(key)
-    return g.router:http_request('delete', url..'/'..key, { http = { timeout = 1 } })
+    return g.router:http_request('delete', url..'/'..key, { http = { timeout = 1 }, raise = false })
 end
 
 
@@ -93,7 +109,7 @@ end
 local function ok(resp, expected_body)
     t.assert_equals(resp.status, 200)
     if expected_body ~= nil then
-        t.assert_equals(resp.body, expected_body)
+        t.assert_equals(resp.json, expected_body)
     end
 end
 
@@ -117,7 +133,7 @@ end
 -- Is key already exists helpers
 local function already_exists(resp)
     t.assert_equals(resp.status, 409)
-    t.assert_equals(resp.body, { error = 'key already exists' })
+    t.assert_equals(resp.json, { error = 'key already exists' })
 end
 
 local function create_already_exists(key, value)
@@ -128,7 +144,7 @@ end
 -- Is key not found helpers
 local function not_found(resp)
     t.assert_equals(resp.status, 404)
-    t.assert_equals(resp.body, {error = 'key not found'})
+    t.assert_equals(resp.json, {error = 'key not found'})
 end
 
 local function read_not_found(key)
@@ -161,8 +177,11 @@ g.test_create_ok = function()
 end
 
 g.test_create_already_exists = function()
-    create_ok('some_key', {})
-    create_already_exists('some_key', {})
+    create_ok('some_key', {name = 'semen'})
+    create_already_exists('some_key', { array = {0, 1, 2, 3} })
+
+    create_ok('other_key', { array = {0, 1, 2, 3} })
+    create_already_exists('other_key', {name = 'semen'})
 end
 
 g.test_read_ok = function()
@@ -192,6 +211,7 @@ g.test_delete_ok = function()
         some_json_key = 'some_json_value'
     }
     create_ok('some', value)
+    create_already_exists('some', value)
     read_ok('some', value)
 
     delete_ok('some')
@@ -201,7 +221,7 @@ end
 
 g.test_multi_operation = function()
     local value1 = { ['hello dear world'] = {1, 2, 3} }
-    local value2 = { 'some', 'string', 'list' }
+    local value2 = { words = {'some', 'string', 'list'} }
     local value3 = { ['parting'] = {'bye', 'bye', 'dear', 'world' } }
 
     create_ok('key1', value1)
@@ -238,4 +258,7 @@ g.test_multi_operation = function()
     read_ok('key1', value1)
     read_ok('key2', value2)
     read_ok('key3', value3)
+end
+
+g.test_empty = function()
 end

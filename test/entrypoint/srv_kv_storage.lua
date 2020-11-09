@@ -1,3 +1,5 @@
+#!/usr/bin/env tarantool
+
 require('strict').on()
 
 _G.is_initialized = function() return false end
@@ -7,6 +9,7 @@ local errors = require('errors')
 local cartridge = require('cartridge')
 
 package.preload['api'] = function()
+    require('log').error('here is ran')
     return require('app.roles.api')
 end
 
@@ -19,8 +22,10 @@ local ok, err = errors.pcall('CartridgeCfgError', cartridge.cfg, {
     http_port = 8081,
     bucket_count = 3000,
     roles = {
-        'api',
-        'kv-storage',
+        'cartridge.roles.vshard-storage',
+        'cartridge.roles.vshard-router',
+        'app.roles.api',
+        'app.roles.kv-storage',
     },
 })
 
