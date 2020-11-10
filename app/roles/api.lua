@@ -60,7 +60,7 @@ local function http_create(request)
     local result, error = crud.get('kv', key, {bucket_id = bucket_id})
 
     if error ~= nil then
-        logger('info', 'get: internal error')
+        logger('info', 'internal error')
         return internal_error(request, error.err)
     end
 
@@ -76,7 +76,7 @@ local function http_create(request)
     })
 
     if error ~= nil then
-        logger('info', 'insert: internal error')
+        logger('info', 'internal error')
         return internal_error(request, error.err)
     end
 

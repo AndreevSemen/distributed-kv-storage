@@ -24,9 +24,9 @@ end
 local function init(opts)
 	crud.init_storage()
 	if opts.is_master then
-		init_tarantool()
-	end
-	return true
+        init_tarantool()
+    end
+    return true
 end
 
 return {
@@ -34,5 +34,5 @@ return {
 	init = init,
 	dependencies = {
 		'cartridge.roles.crud-storage',
-	},
+    },
 }
