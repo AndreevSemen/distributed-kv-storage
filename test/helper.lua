@@ -14,7 +14,21 @@ local helpers = table.copy(cartridge_helpers)
 
 helpers.root = fio.dirname(fio.abspath(package.search('init')))
 helpers.datadir = fio.pathjoin(helpers.root, 'tmp', 'storage_test')
-helpers.server_command = fio.pathjoin(helpers.root, 'test', 'entrypoint', 'srv_kv_storage.lua')
+
+function helpers.entrypoint(command_name)
+    local path_to_entry = fio.pathjoin(
+        helpers.root,
+        'test',
+        'entrypoint',
+        string.format('%s.lua', command_name)
+    )
+
+    if not fio.path.exists(path_to_entry) then
+        error(string.format('no such entrypoint: %s', path_to_entry), 2)
+    end
+
+    return path_to_entry
+end
 
 t.before_suite(function()
     fio.rmtree(helpers.datadir)

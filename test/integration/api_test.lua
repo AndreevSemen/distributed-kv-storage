@@ -1,22 +1,22 @@
 local fio = require('fio')
-
 local t = require('luatest')
-local g = t.group('integration_api')
 
-local log = require('log')
+
+local g = t.group('integration_api')
 
 local helper = require('test.helper.integration')
 
+local server_command = 'srv_kv_storage'
 
-local http_client = require('http.client')
-local url = '/kv'
-
+local storage_name = 'kv'
+local storage_path = helper.path_to_storage(storage_name)
+local path_to_key = helper.key_path_formatter(storage_path)
 
 g.before_all = function()
     g.cluster = helper.shared.Cluster:new({
         base_http_port = 8080,
         base_advertise_port = 3000,
-        server_command = helper.shared.server_command,
+        server_command = helper.shared.entrypoint(server_command),
         datadir = helper.shared.datadir,
         use_vshard = true,
         replicasets = {
@@ -68,13 +68,11 @@ g.before_each(function()
     end
 end)
 
-g.after_each(function()
-
-end)
+g.after_each(function() end)
 
 -- CRUD helpers
 local function create(key, value)
-    return g.router:http_request('post', url..'/', {
+    return g.router:http_request('post', storage_path, {
         json = {
             key = key,
             value = value,
@@ -85,138 +83,140 @@ local function create(key, value)
 end
 
 local function read(key)
-    return g.router:http_request('get', url..'/'..key, { http = { timeout = 1 } , raise = false })
+    return g.router:http_request('get', path_to_key(key), { http = { timeout = 1 } , raise = false })
 end
 
 local function update(key, value)
-    local resp = g.router:http_request('put', url..'/'..key, {
+    return g.router:http_request('put', path_to_key(key), {
         json = { value = value },
         http = {
             timeout = 1
         },
         raise = false,
     })
-    log.info(resp)
-    return resp
 end
 
 local function delete(key)
-    return g.router:http_request('delete', url..'/'..key, { http = { timeout = 1 }, raise = false })
+    return g.router:http_request('delete', path_to_key(key), { http = { timeout = 1 }, raise = false })
 end
 
 
--- Is request ok helpers
-local function ok(resp, expected_body)
+-- Expected bodies for some operations
+local successfully_created_body = { result = 'record created' }
+local successfully_updated_body = { result = 'record updated' }
+local successfully_deleted_body = { result = 'record deleted' }
+
+
+-- Is request ok helper
+local function assert_resp_ok(resp, expected_body)
     t.assert_equals(resp.status, 200)
     if expected_body ~= nil then
         t.assert_equals(resp.json, expected_body)
     end
 end
 
-local function create_ok(key, value)
-    ok(create(key, value), { result = 'record created' })
-end
 
-local function read_ok(key, expected_value)
-    ok(read(key), { value = expected_value })
-end
-
-local function update_ok(key, value)
-    ok(update(key, value), { result = 'record updated' })
-end
-
-local function delete_ok(key)
-    ok(delete(key), { result = 'record deleted' })
-end
-
-
--- Is key already exists helpers
-local function already_exists(resp)
+-- Is key already exists helper
+local function assert_err_already_exists(resp)
     t.assert_equals(resp.status, 409)
     t.assert_equals(resp.json, { error = 'key already exists' })
 end
 
-local function create_already_exists(key, value)
-    already_exists(create(key, value))
-end
 
-
--- Is key not found helpers
-local function not_found(resp)
+-- Is key not found helper
+local function assert_err_not_found(resp)
     t.assert_equals(resp.status, 404)
-    t.assert_equals(resp.json, {error = 'key not found'})
+    t.assert_equals(resp.json, { error = 'key not found' })
 end
 
-local function read_not_found(key)
-    not_found(read(key))
-end
-
-local function update_not_found(key, value)
-    not_found(update(key, value))
-end
-
-local function delete_not_found(key)
-    not_found(delete(key))
-end
 
 
 g.test_read_not_found = function()
-    read_not_found('some_key')
+    local resp = read('some_key')
+    assert_err_not_found(resp)
 end
 
 g.test_update_not_found = function()
-    update_not_found('some_key', {'hello_world'})
+    local resp = update('some_key', { greeting = 'hello_world' })
+    assert_err_not_found(resp)
 end
 
 g.test_delete_not_found = function()
-    not_found(delete('some_key'))
+    local resp = delete('some_key')
+    assert_err_not_found(resp)
 end
 
 g.test_create_ok = function()
-    create_ok('awesome key', { some_json = { 'opt 1', 'opt 2', 'opt 3'} })
+    local resp = create('awesome key', { some_json = { 'opt 1', 'opt 2', 'opt 3'} })
+    assert_resp_ok(resp, successfully_created_body)
 end
 
 g.test_create_already_exists = function()
-    create_ok('some_key', {name = 'semen'})
-    create_already_exists('some_key', { array = {0, 1, 2, 3} })
+    local resp = create('some_key', { name = 'semen' })
+    assert_resp_ok(resp, successfully_created_body)
 
-    create_ok('other_key', { array = {0, 1, 2, 3} })
-    create_already_exists('other_key', {name = 'semen'})
+    local resp  = create('some_key', { array = {0, 1, 2, 3} })
+    assert_err_already_exists(resp)
+
+
+    local resp = create('other_key', { array = {0, 1, 2, 3} })
+    assert_resp_ok(resp, successfully_created_body)
+
+    local resp  = create('other_key', { name = 'semen' })
+    assert_err_already_exists(resp)
 end
 
 g.test_read_ok = function()
     local value = {
         some_json_key = 'some_json_value'
     }
-    create_ok('some', value)
-    read_ok('some', value)
+    local resp = create('some', value)
+    assert_resp_ok(resp, successfully_created_body)
+
+    local resp = read('some')
+    assert_resp_ok(resp, { value = value })
 end
 
 g.test_update_ok = function()
     local value = {
         some_json_key = 'some_json_value'
     }
-    create_ok('some', value)
-    read_ok('some', value)
+    local resp = create('some', value)
+    assert_resp_ok(resp, successfully_created_body)
 
-    value = {
+    local resp = read('some')
+    assert_resp_ok(resp, { value = value })
+
+
+    local value = {
         another_json_key = 'another_json_value'
     }
-    update_ok('some', value)
-    read_ok('some', value)
+    local resp = update('some', value)
+    assert_resp_ok(resp, successfully_updated_body)
+
+    local resp = read('some')
+    assert_resp_ok(resp, { value = value })
 end
 
 g.test_delete_ok = function()
     local value = {
         some_json_key = 'some_json_value'
     }
-    create_ok('some', value)
-    create_already_exists('some', value)
-    read_ok('some', value)
+    local resp = create('some', value)
+    assert_resp_ok(resp, successfully_created_body)
 
-    delete_ok('some')
-    read_not_found('some')
-    delete_not_found('some')
+    local resp = read('some')
+    assert_resp_ok(resp, { value = value })
+
+
+    local resp = delete('some')
+    assert_resp_ok(resp, successfully_deleted_body)
+
+    local resp = read('some')
+    assert_err_not_found(resp)
+
+    local resp = delete('some')
+    assert_err_not_found(resp)
 end
 
 g.test_multi_operation = function()
@@ -224,41 +224,89 @@ g.test_multi_operation = function()
     local value2 = { words = {'some', 'string', 'list'} }
     local value3 = { ['parting'] = {'bye', 'bye', 'dear', 'world' } }
 
-    create_ok('key1', value1)
-    create_already_exists('key1', value2)
-    create_ok('key2', value2)
-    create_already_exists('key2', value1)
-    create_ok('key3', value3)
-    create_already_exists('key3', value3)
+    -- -- create keys
+    -- key 1
+    local resp = create('key1', value1)
+    assert_resp_ok(resp, successfully_created_body)
+    local resp  = create('key1', value2)
+    assert_err_already_exists(resp)
 
-    read_ok('key1', value1)
-    read_ok('key2', value2)
-    read_ok('key3', value3)
+    -- key 2
+    local resp = create('key2', value2)
+    assert_resp_ok(resp, successfully_created_body)
+    local resp  = create('key2', value1)
+    assert_err_already_exists(resp)
 
-    update_ok('key1', value2)
-    update_ok('key2', value3)
-    update_ok('key3', value1)
+    -- key 3
+    local resp = create('key3', value3)
+    assert_resp_ok(resp, successfully_created_body)
+    local resp  = create('key3', value3)
+    assert_err_already_exists(resp)
 
-    read_ok('key1', value2)
-    read_ok('key2', value3)
-    read_ok('key3', value1)
+    -- -- read keys
+    local resp = read('key1')
+    assert_resp_ok(resp, { value = value1 })
+    local resp = read('key2')
+    assert_resp_ok(resp, { value = value2 })
+    local resp = read('key3')
+    assert_resp_ok(resp, { value = value3 })
 
-    delete_ok('key1')
-    delete_ok('key2')
-    delete_ok('key3')
+    -- -- update keys
+    local resp = update('key1', value2)
+    assert_resp_ok(resp, successfully_updated_body)
+    local resp = update('key2', value3)
+    assert_resp_ok(resp, successfully_updated_body)
+    local resp = update('key3', value1)
+    assert_resp_ok(resp, successfully_updated_body)
 
-    read_not_found('key1')
-    read_not_found('key2')
-    read_not_found('key3')
+    -- -- read keys
+    local resp = read('key1')
+    assert_resp_ok(resp, { value = value2 })
+    local resp = read('key2')
+    assert_resp_ok(resp, { value = value3 })
+    local resp = read('key3')
+    assert_resp_ok(resp, { value = value1 })
 
-    create_ok('key1', value1)
-    create_ok('key2', value2)
-    create_ok('key3', value3)
+    -- -- delete keys
+    local resp = delete('key1')
+    assert_resp_ok(resp, successfully_deleted_body)
+    local resp = delete('key2')
+    assert_resp_ok(resp, successfully_deleted_body)
+    local resp = delete('key3')
+    assert_resp_ok(resp, successfully_deleted_body)
 
-    read_ok('key1', value1)
-    read_ok('key2', value2)
-    read_ok('key3', value3)
-end
+    -- -- read keys (not found)
+    local resp = read('key1')
+    assert_err_not_found(resp)
+    local resp = read('key2')
+    assert_err_not_found(resp)
+    local resp = read('key3')
+    assert_err_not_found(resp)
 
-g.test_empty = function()
+    -- -- create keys
+    -- key 1
+    local resp = create('key1', value1)
+    assert_resp_ok(resp, successfully_created_body)
+    local resp  = create('key1', value2)
+    assert_err_already_exists(resp)
+
+    -- key 2
+    local resp = create('key2', value2)
+    assert_resp_ok(resp, successfully_created_body)
+    local resp  = create('key2', value1)
+    assert_err_already_exists(resp)
+
+    -- key 3
+    local resp = create('key3', value3)
+    assert_resp_ok(resp, successfully_created_body)
+    local resp  = create('key3', value3)
+    assert_err_already_exists(resp)
+
+    -- -- read keys
+    local resp = read('key1')
+    assert_resp_ok(resp, { value = value1 })
+    local resp = read('key2')
+    assert_resp_ok(resp, { value = value2 })
+    local resp = read('key3')
+    assert_resp_ok(resp, { value = value3 })
 end
