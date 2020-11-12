@@ -15,7 +15,6 @@ __pycache__
 *.xlog
 *.snap
 *.rpm
-*.deb
 *.tar.gz
 node_modules
 /tmp/*

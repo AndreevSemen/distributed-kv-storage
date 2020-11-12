@@ -1,27 +1,27 @@
 local t = require('luatest')
+local log = require('log')
+local fio = require('fio')
 
-local cartridge_helpers = require('cartridge.test-helpers')
 local shared = require('test.helper')
+local helper = {shared = shared }
 
-local helper = {shared = shared}
 
-helper.cluster = cartridge_helpers.Cluster:new({
-    server_command = shared.server_command,
-    datadir = shared.datadir,
-    use_vshard = false,
-    replicasets = {
-        {
-            alias = 'api',
-            uuid = cartridge_helpers.uuid('a'),
-            roles = {'app.roles.custom'},
-            servers = {
-				{ instance_uuid = cartridge_helpers.uuid('a', 1) }
-			},
-        },
-    },
-})
+local function join_url(...)
+    local url = ''
+    for i, piece in ipairs({...}) do
+        if i == 1 then
+            url = piece
+        else
+            url = string.format('%s/%s', url, piece)
+        end
+    end
+    return url
+end
 
-t.before_suite(function() helper.cluster:start() end)
-t.after_suite(function() helper.cluster:stop() end)
+helper.base_kv_endpoint = '/kv'
+
+function helper.key_path(key)
+    return join_url(helper.base_kv_endpoint, key)
+end
 
 return helper
