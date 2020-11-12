@@ -8,10 +8,6 @@ local helper = require('test.helper.integration')
 
 local server_command = 'srv_kv_storage'
 
-local storage_name = 'kv'
-local storage_path = helper.path_to_storage(storage_name)
-local path_to_key = helper.key_path_formatter(storage_path)
-
 g.before_all = function()
     g.cluster = helper.shared.Cluster:new({
         base_http_port = 8080,
@@ -72,7 +68,7 @@ g.after_each(function() end)
 
 -- CRUD helpers
 local function create(key, value)
-    return g.router:http_request('post', storage_path, {
+    return g.router:http_request('post', helper.base_kv_endpoint, {
         json = {
             key = key,
             value = value,
@@ -83,11 +79,11 @@ local function create(key, value)
 end
 
 local function read(key)
-    return g.router:http_request('get', path_to_key(key), { http = { timeout = 1 } , raise = false })
+    return g.router:http_request('get', helper.key_path(key), { http = { timeout = 1 } , raise = false })
 end
 
 local function update(key, value)
-    return g.router:http_request('put', path_to_key(key), {
+    return g.router:http_request('put', helper.key_path(key), {
         json = { value = value },
         http = {
             timeout = 1
@@ -97,7 +93,7 @@ local function update(key, value)
 end
 
 local function delete(key)
-    return g.router:http_request('delete', path_to_key(key), { http = { timeout = 1 }, raise = false })
+    return g.router:http_request('delete', helper.key_path(key), { http = { timeout = 1 }, raise = false })
 end
 
 

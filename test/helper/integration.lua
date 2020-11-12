@@ -6,7 +6,6 @@ local shared = require('test.helper')
 local helper = {shared = shared }
 
 
-local root_url = '/'
 local function join_url(...)
     local url = ''
     for i, piece in ipairs({...}) do
@@ -19,14 +18,10 @@ local function join_url(...)
     return url
 end
 
-function helper.path_to_storage(storage)
-    return string.format('/%s', storage)
-end
+helper.base_kv_endpoint = '/kv'
 
-function helper.key_path_formatter(storage_path)
-    return function(key)
-        return join_url(storage_path, key)
-    end
+function helper.key_path(key)
+    return join_url(helper.base_kv_endpoint, key)
 end
 
 return helper
